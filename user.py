@@ -8,6 +8,7 @@ class User:
         self.current_day = 0
         self.restaurants = []
         self.given_grades = []
+        self.has_eaten = []
     
     def generate_random_params(self, restaurants, specialities, spacial_var = 0.1):
         self.age = np.clip((self.rd.beta(2, 5)+0.05) * 100, 18, 100)
@@ -91,3 +92,13 @@ class User:
         self.given_grades.append(grade)
         self.restaurants.append(restaurant.id)
         restaurant.give_grade(grade)
+    
+    def wanna_eat(self, hour):
+        if hour > 11 and hour < 14:
+            # User did not eat at lunch and use La Fourchette
+            return not self.has_eaten[-1][0] and self.rd.rand() < self.use_lf_prob
+        elif hour > 18 and hour < 22:
+            # User did not eat at diner and use La Fourchette
+            return not self.has_eaten[-1][1] and self.rd.rand() < self.use_lf_prob
+        else:
+            return False
