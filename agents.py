@@ -4,10 +4,9 @@ class BaseAgent():
 
     def __init__(self, seed):
         self.rd = np.random.RandomState(seed=seed)
-        pass
 
-    def init(self):
-        pass
+    def init(self, seed):
+        self.rd = np.random.RandomState(seed=seed)
 
     def get_action(self, user, restaurants):
         pass
@@ -18,24 +17,18 @@ class BaseAgent():
 class RandomAgent(BaseAgent):
 
     def __init__(self, seed=None):
-        super(RandomAgent).__init__(seed)
-        pass
-
-    def init(self):
-        pass
+        super(RandomAgent, self).__init__(seed)
 
     def get_action(self, user, restaurants):
         n_restaurants = len(restaurants)
+        if n_restaurants <= 0:
+            return None
         return restaurants[self.rd.randint(0, n_restaurants)].id
 
 class EpsGreedyAgent(BaseAgent):
     def __init__(self, epsilon, seed=None):
         super(EpsGreedyAgent).__init__(seed=seed)
         self.epsilon = epsilon
-
-    def init(self):
-
-        pass
 
     def get_action(self, user, restaurants):
         n_restaurants = len(restaurants)
