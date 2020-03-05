@@ -25,8 +25,8 @@ class Restaurant():
     
     def generate_random_params(self, mean_n_tables):
         self.n_tables = np.maximum(int(self.rd.normal(mean_n_tables, mean_n_tables/2)), 2)
-        self.tables = [self.rd.choice([2,3,4,5,6]) for i in range(self.n_tables)]
-        self.locked_tables = np.zeros(self.n_tables)
+        self.tables = np.array([self.rd.choice([2,3,4,5,6]) for i in range(self.n_tables)])
+        self.locked_tables = np.zeros(self.n_tables, dtype=np.bool)
         self.mean_price = (self.rd.beta(2, 5)+0.05) * 100
         self.is_lf_customer = self.rd.random() > 0.5 # Is the restaurant a La Fourchette customer ?
         self.exigency =  np.maximum(self.rd.normal(9, 4), 0.01) # Exigency of the restaurant about the commission taken by La Fourchette
@@ -34,7 +34,7 @@ class Restaurant():
         self.horaires = [12, 19, 20, 22]
         self.deserved_grade = (self.rd.beta(6, 2)) * 5 # The grade the restaurant deserves
         
-        
+    # Load restaurant from a database (csv)
     @staticmethod
     def load_from_csv(path, set_random_params = False, mean_n_tables = 4, seed = None):
         df = pandas.read_csv(path)
@@ -59,6 +59,7 @@ class Restaurant():
             
         return restaurants, sp_dict
     
+    # Return restaurant specialities
     def get_specialities(self):
         return self.specialities
 
@@ -80,11 +81,13 @@ class Restaurant():
             self.notoriety = np.clip(self.notoriety + alpha, 0, 1)
         return alpha
     
+    # Save current occupation of the restaurant
     def save_occupation(self):
         n_places = np.sum(self.tables)
         pourcentage = np.sum([self.tables[i] for i, taken in enumerate(self.locked_tables) if taken]) / n_places
         self.occupation.append(pourcentage)
 
+    # Save a grade given by a user
     def give_grade(self, grade):
         self.grades.append(grade)
         self.day.append(self.current_day)
@@ -108,16 +111,21 @@ class Restaurant():
         v = -self.notoriety + C / (commission + a) + b
         return min(sigmoid(5*v), max_entering_prob)
     
+    # Return true if the restaurant accepte the commission 
     def accept_commission(self, commission):
         return self.rd.rand() < self.staying_prob(commission)
     
+    # Return the max commission the restaurant will accept
     def max_commission_accepted(self):
         accepted = [self.accept_commission(c) for c in commissions]
         return commissions[np.argmax(accepted)]
         
+    # Return true if the restaurant has a table with enough places
     def can_welcome(self, n_people):
-        return np.max(self.n_tables) - n_people > 0 
+        t = self.tables[~self.locked_tables]
+        return np.max(t) - n_people > 0 
 
+    # Return a table and book it if book is equal to True
     def get_table(self, n_people, book=True):
         delta_places = [n_chaires - n_people for i, n_chaires in enumerate(self.tables) if not self.locked_tables[i]]
         delta_places = np.argsort([n_c for n_c in delta_places if n_c >= 0])
@@ -130,13 +138,15 @@ class Restaurant():
         else:
             return None
 
+    # Lock a table (nobody else can book it)
     def lock_table(self, id_table):
         self.locked_tables[id_table] = 1
     
+    # Free all the tables of the restaurant
     def free_tables(self):
-        self.locked_tables = np.zeros_like(self.locked_tables)
+        self.locked_tables = np.zeros(self.n_tables, dtype=np.bool)
 
-    def get_features_vector(self):
+    def get_feature_vec(self):
         last_grades = np.zeros(10) + 3
         n = min(10, len(self.grades))
         if n > 0:
@@ -146,6 +156,7 @@ class Restaurant():
         n = min(10, len(self.occupation))
         if n > 0:
             last_occup[-n:] = self.occupation[-n:]
+            
         price = self.mean_price
 
-        return np.concatenate((last_grades, [price], self.occupation, self.specialities_vec))
+        return np.concatenate((last_grades, [price], last_occup, self.specialities_vec))

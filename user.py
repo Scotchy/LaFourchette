@@ -1,5 +1,5 @@
 import numpy as np
-from utils import sigmoid, eating_hours
+from utils import sigmoid, eating_hours, N_SPECILIATIES, min_lf_prob
 
 class User:
     
@@ -22,16 +22,16 @@ class User:
         self.n_people = int(self.rd.uniform(1, 5))
 
         self.price_appeatance = np.clip(sigmoid((self.age-15) / 20) * 100 + self.rd.normal(0, 10), 5, 100)
-        self.use_lf_prob = [self.rd.uniform(0.01, 0.98)]
+        self.use_lf_prob = [self.rd.uniform(min_lf_prob, 0.98)]
         self.promo_sensitivity = np.clip(self.rd.normal(0.3, 0.05), 0.2, 0.4)
         self.has_car = self.rd.rand() < 0.8 if self.age > 28 else self.rd.rand() < 0.1
         self.max_distance = np.clip(self.rd.normal(2000, 500) if self.has_car else self.rd.normal(5000, 2000), 0, 10000)
         self.preferences = self.rd.beta(0.3,0.3, len(specialities))
         self.price_sensitivity = self.rd.uniform(0.02, 0.1)
-        self.accept_threshold = self.rd.uniform(0.1, 0.55)
+        self.accept_threshold = self.rd.uniform(0.005, 0.002)
         self.next_eating_day = self.rd.randint(0, 7)
         self.next_eating_hour = self.rd.choice(eating_hours)
-        self.restaurant_frequency_per_day = self.rd.uniform(0.1, 0.4)
+        self.restaurant_frequency_per_day = self.rd.uniform(0.4, 0.8)
     
     """def compute_lf_prob(self, update=False):
         # Update the probability that the user will use La Fourchette next time
@@ -55,19 +55,20 @@ class User:
             new_prob = np.mean(grades) / 5
             new_prob -= 0.2 * np.sum(grades == 5) # If a customer really likes a restaurant, he will stop using La Fourchette
             new_prob -= 0.05 * np.sum(grades == 5) # If a customer did not find a restaurant, he will stop using La Fourchette
-            new_prob = np.clip(new_prob, 0.01, 1)
+            new_prob = np.clip(new_prob, min_lf_prob, 1)
         else:
-            new_prob = np.clip(self.use_lf_prob[-1] * 0.95, 0.01, 1)
+            new_prob = np.clip(self.use_lf_prob[-1] * 0.95, min_lf_prob, 1)
         
         if update:
             self.use_lf_prob.append(new_prob)
-            self.n_people = int(self.rd.uniform(1, 5)) # Update the number of people next time
+            self.n_people = int(self.rd.uniform(1, 4)) # Update the number of people next time
         return new_prob
 
     def update(self, grade):
-        self.lat += self.rd.normal(0, 0.05)
-        self.lon += self.rd.normal(0, 0.05)
-        self.compute_lf_prob(grade, update=True)
+        #self.lat += self.rd.normal(0, 0.005)
+        #self.lon += self.rd.normal(0, 0.005)
+        if grade != -1:
+            self.compute_lf_prob(grade, update=True)
         self.plan_next_restaurant(update=True)
 
     def plan_next_restaurant(self, lf_prob=None, update=False):
@@ -165,17 +166,23 @@ class User:
         else:
             return False
     
-    def get__features_vec(self):
+    def get_feature_vec(self):
         last_grades = np.zeros(10) + 3
-        n = min(10, len(self.grades))
+        n = min(10, len(self.given_grades))
         if n > 0:
             last_grades[-n:] = self.given_grades[-n:]
 
         last_spent = np.zeros(10) + 0.5
-        n = min(10, len(self.occupation))
+        n = min(10, len(self.money_spent))
         if n > 0:
-            last_spent[-n:] = self.occupation[-n:]
-            
-        price = self.mean_price
+            last_spent[-n:] = self.money_spent[-n:]
+        
+        last_spec = np.zeros(N_SPECILIATIES)
+        n = min(10, len(self.restaurants))
+        if n > 0:
+            specs = np.concatenate([r.get_specialities() for r in self.restaurants[-n:]])
+            for sp in specs:
+                last_spec[sp] += 1
+            last_spec /= n
 
-        return np.concatenate((last_grades, [price], self.occupation, self.specialities_vec))
+        return np.concatenate((last_grades, last_spent, last_spec))
