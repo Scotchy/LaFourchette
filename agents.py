@@ -3,6 +3,7 @@ import numpy as np
 def random_argmax(rd, l):
     return rd.choice(np.argwhere(l == l.max()).flatten())
 
+
 class BaseAgent():
 
     def __init__(self, seed):
@@ -11,25 +12,26 @@ class BaseAgent():
     def init(self, seed):
         self.rd = np.random.RandomState(seed=seed)
 
-    def get_action(self, user, restaurants):
+    def get_action(self, context, user, restaurants):
         pass
     
     def update(self, context, action, reward):
         pass
+
 
 class RandomAgent(BaseAgent):
 
     def __init__(self, seed=None):
         super(RandomAgent, self).__init__(seed)
 
-    def get_action(self, context, restaurants_id):
-        n_restaurants = len(restaurants_id)
+    def get_action(self, context, user, restaurants):
+        n_restaurants = len(restaurants)
         if n_restaurants <= 0:
             return None
-        return restaurants_id[self.rd.randint(0, n_restaurants)]
-    
-    
+        return restaurants[self.rd.randint(0, n_restaurants)]
 
+    
+# Non Contextual Epsilon Greedy 
 class EpsGreedyAgent(BaseAgent):
     def __init__(self, nb_arms, epsilon, seed=None):
         super(EpsGreedyAgent, self).__init__(seed)
@@ -37,7 +39,7 @@ class EpsGreedyAgent(BaseAgent):
         self.nb_played = np.zeros(nb_arms)
         self.q = np.zeros(nb_arms)
 
-    def get_action(self, user, restaurants):
+    def get_action(self, context, user, restaurants):
         n_restaurants = len(restaurants)
         p = self.rd.rand()
         if p < self.epsilon:
@@ -45,10 +47,12 @@ class EpsGreedyAgent(BaseAgent):
         else:
             return restaurants[random_argmax(self.rd, self.q[restaurants])]
         
-    def update(self, action, reward):
+    def update(self, context, action, reward):
         self.nb_played[action] += 1
         self.q += (reward - self.q[action]) / self.nb_played[action]
 
+
+# Contextual Epsilon Greedy
 class ContextualEpsilonGreedyAgent(BaseAgent):
     def __init__(self, nb_arms, context_size, lr=.1, epsilon=0, seed=None):
         super(ContextualEpsilonGreedyAgent, self).__init__(seed)
@@ -75,6 +79,7 @@ class ContextualEpsilonGreedyAgent(BaseAgent):
         grad = - context[action] * (reward - context[action].dot(self.beta[action]))
         self.beta[action] = self.beta[action] - self.lr/self.nb_played[action] * grad
 
+# Non Contextual UCB
 class UCBAgent(BaseAgent):
     def __init__(self, nb_arms, c=2., seed=None):
         super(UCBAgent, self).__init__(seed)
@@ -91,7 +96,7 @@ class UCBAgent(BaseAgent):
             action = restaurants[np.argmax(ar[restaurants])]
         return action
     
-    def update(self, action, reward):
+    def update(self, context, action, reward):
         self.t += 1
         self.nb_played[action] += 1
         self.q[action] += (reward - self.q[action])/self.nb_played[action]
@@ -147,5 +152,4 @@ class DeepAgent(BaseAgent):
         self.model.fit([X1,X2], Y, verbose=0)
 
     def update(self, context, action, reward):
-
         pass
