@@ -33,19 +33,7 @@ class User:
         self.next_eating_hour = self.rd.choice(eating_hours)
         self.restaurant_frequency_per_day = self.rd.uniform(0.4, 0.8)
     
-    """def compute_lf_prob(self, update=False):
-        # Update the probability that the user will use La Fourchette next time
-        n_last_exp = 3
-        n_last = min(n_last_exp, len(self.given_grades)-1)
-        new_prob = np.mean(self.given_grades[-n_last:]) / 5
-        new_prob -= 0.2 * np.sum(self.given_grades[-n_last:] == 5) # If a customer really likes a restaurant, he will stop using La Fourchette
-        new_prob -= 0.05 * np.sum(self.given_grades[-n_last:] == 5) # If a customer did not find a restaurant, he will stop using La Fourchette
-        new_prob = np.clip(new_prob, 0, 1)
-        if update:
-            self.use_lf_prob.append(new_prob)
-            self.n_people = int(self.rd.uniform(1, 5)) # Update the number of people next time
-        return new_prob"""
-    
+    #
     def compute_lf_prob(self, grade, update=False):
         if grade is not None:
             n_last_exp = 3
@@ -131,6 +119,7 @@ class User:
         grade = np.clip(restaurant.deserved_grade + self.rd.normal(0, 1.2 * sigmoid(money_spent - self.price_appeatance)), 0, 5)
         return grade, money_spent
     
+    # Simulate that the user eat at all the available restaurant and returns the reward, max reward and the grade given by the user
     def simulate_eating_at_restaurants(self, restaurants, restaurant_id, id_table):
         id_tables = [r.get_table(self.n_people, book=False) for r in restaurants]
         exp = np.array([self.eat_at_restaurant(r, id_t) for r, id_t in zip(restaurants, id_tables)])
